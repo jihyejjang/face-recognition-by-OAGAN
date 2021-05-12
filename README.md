@@ -17,6 +17,7 @@
   - [ ] 모델의 출력을 inverted M과 dot product
   - [ ] oa module(지혜승건팀)의 xocc와 M eltw 결과를 3의 바로위 결과와 sum(->discriminator의 input)
 - [ ] Discriminator
+- [ ] loss function(pair-perceptual, style, pixel, smooth, L2, adversarial / unpair-smooth, L2, adversarial)
 - [ ] train
 - [ ] ...
 
@@ -29,3 +30,4 @@
 [semi-supervised-learning gan code - tensorflow](https://github.com/nejlag/Semi-Supervised-Learning-GAN)  
 [semi supervised gan code- keras](https://livebook.manning.com/book/gans-in-action/chapter-7/v-6/)  
 [Semi Supervised GAN for image classification code - pytorch](https://nbviewer.jupyter.org/github/opetrova/SemiSupervisedPytorchGAN/blob/master/SemiSupervisedGAN.ipynb)
+[mask face dataset](https://github.com/X-zhangyang/Real-World-Masked-Face-Dataset)
