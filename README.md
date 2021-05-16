@@ -29,5 +29,5 @@
 [semi-supervised gan code - keras](https://github.com/eriklindernoren/Keras-GAN/blob/master/sgan/sgan.py)  
 [semi-supervised-learning gan code - tensorflow](https://github.com/nejlag/Semi-Supervised-Learning-GAN)  
 [semi supervised gan code- keras](https://livebook.manning.com/book/gans-in-action/chapter-7/v-6/)  
-[Semi Supervised GAN for image classification code - pytorch](https://nbviewer.jupyter.org/github/opetrova/SemiSupervisedPytorchGAN/blob/master/SemiSupervisedGAN.ipynb)
+[Semi Supervised GAN for image classification code - pytorch](https://nbviewer.jupyter.org/github/opetrova/SemiSupervisedPytorchGAN/blob/master/SemiSupervisedGAN.ipynb)  
 [mask face dataset](https://github.com/X-zhangyang/Real-World-Masked-Face-Dataset)
