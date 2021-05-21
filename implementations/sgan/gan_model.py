@@ -8,11 +8,13 @@ from torchvision.utils import save_image
 
 from torch.utils.data import DataLoader
 from torchvision import datasets
+import torchvision.models as models
 from torch.autograd import Variable
 
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+
 
 os.makedirs("images", exist_ok=True)
 
@@ -33,6 +35,17 @@ print(opt)
 
 cuda = True if torch.cuda.is_available() else False
 
+
+# print(vgg16.features_13(img).shape)
+# activation ={}
+# def get_activation(name):
+#     def hook(model, input, output):
+#         activation[name] = output.detach()
+#         return hook
+# vgg16.features.register_forward_hook(get_activation('Conv2d'))
+# output = vgg16(img)
+
+# print(vgg16.features_13(img).shape)
 
 
 def weights_init_normal(m):
@@ -86,7 +99,7 @@ class Generator_fo(nn.Module):
         self.block3_1 = DIR(256, 128, 4, 2, 1)
         self.block3_2 = DIR(128, 64, 4, 2, 1)
         self.conv_block = nn.Conv2d(64, 1, 7, 1, 3)
-        self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
 
     def residual_box(self, in_c, in_num):
         for i in range(in_num):
@@ -115,7 +128,7 @@ class Generator_fo(nn.Module):
         out = self.block3_1(out)
         out1 = self.block3_2(out)
         out2 = self.conv_block(out1)
-        out2 = self.tanh(out2)
+        out2 = self.sigmoid(out2)
         # out = out.view(out.shape[0], 128, self.init_size, self.init_size)
         # img = self.conv_blocks(out)
         return out1, out2
@@ -137,6 +150,7 @@ cuda = True if torch.cuda.is_available() else False
 print("cuda: ", cuda)
 
 img = torch.randn([1,3,128,128])
+gt = torch.randn([1,3,128,128])
 model = Generator_fo()
 # print(np.array(model(img))[0].shape)
 
@@ -202,16 +216,18 @@ model2 = FaceCompletion()
 # mask = torch.rand(1, 128, 128)
 # print(img[0][0].view(1,1,128,128).shape) # 1채널 (1,1,128,128)
 oa_feature = torch.rand(64, 128, 128)
-inverse_mask = torch.ones(1,1,128,128) - model(img)[1]
-occ_m = eltw(img,model(img)[1])
+M = model(img)[1]
+inverse_M = torch.ones(1,1,128,128) - M
+occ_m = eltw(img,M)
 
 # occ_m = eltw(img,model(img)[0][1])
 # occ_m = eltw(img,model(img)[0][2])
 input_img = eltw(model(img)[0], model(img)[1])
-gnn_output = model2(input_img)
-g_out = eltw(gnn_output, inverse_mask)
-g_out = g_out + occ_m
-print(g_out.shape)
+synth = model2(input_img)
+synth_inv = eltw(synth, inverse_M)
+final = synth_inv + occ_m
+# print(final.shape)
+
 
 class Discriminator(nn.Module):
     def __init__(self):
@@ -236,6 +252,9 @@ class Discriminator(nn.Module):
         # Output layers
         self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1), nn.Sigmoid())
         self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.num_classes + 1), nn.Softmax())
+
+print(synth.shape) # [1,3,128,128]
+# print(vgg16(synth)) # [1,1000]
 
 #         self.block1 = CIR(3, 64, 7, 1, 3)
 #         self.block2_1 = CIR(64, 128, 4, 2, 1)
