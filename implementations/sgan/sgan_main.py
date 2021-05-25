@@ -3,6 +3,7 @@
 import argparse
 import os
 import numpy as np
+from dataloader import OAGandataset
 import math
 
 import torchvision.transforms as transforms
@@ -35,6 +36,8 @@ opt = parser.parse_args()
 
 cuda = True if torch.cuda.is_available() else False
 
+
+
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find("Conv") != -1:
@@ -42,7 +45,6 @@ def weights_init_normal(m):
     elif classname.find("BatchNorm") != -1:
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
-
 
 class IdentityPadding(nn.Module):
     def __init__(self, in_channels, out_channels, stride):
@@ -319,10 +321,22 @@ if cuda:
 generator.apply(weights_init_normal)
 discriminator.apply(weights_init_normal)
 
-# data load
-# TODO: 지혜 foc module dataloader.py 여기에 써주세요~
+# data loader
+# TODO: 지혜 dataloader.py 여기에 써주세요~
 # TODO: py파일 불러오기로쓸거면 return 만들어주세요
 # 밑에 오류는 언니가 dataloader만들면 없어질거임.
+
+paired_dataset = OAGandataset(paired=True, folder_numbering=False)
+unpaired_dataset = OAGandataset(unpaired=True, folder_numbering=False)
+
+train_dataloader_p = DataLoader(paired_dataset,
+                                shuffle=True,
+                                num_workers=0,
+                                batch_size= 30) #batch size?
+trin_dataloader_up = DataLoader(unpaired_dataset,
+                                shuffle=True,
+                                num_sorkers=0,
+                                batch_size=30)
 
 # Optimizers
 # TODO: 10-4가 0.0001맞나?
@@ -337,8 +351,10 @@ LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 #  TODO: alternating training 보고 디자인하기
 # ----------
 
+#나도 TODO넣고싶은데 어케함???????
+#paired image training (unpaired도 따로 만들고, loss도 상황에 따라 적용)
 for epoch in range(opt.n_epochs):
-    for i, (imgs, labels) in enumerate(dataloader):
+    for i, (imgs,imgs_gt,labels) in enumerate(train_dataloader_p):
 
         batch_size = imgs.shape[0]
 
