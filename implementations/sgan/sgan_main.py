@@ -290,14 +290,21 @@ class Discriminator(nn.Module):
         # Output layers
         # TODO: sgan 그대로 써도될지. 논문에는 conv(adv), conv(attr)임
         # https://github.com/znxlwm/pytorch-pix2pix/blob/3059f2af53324e77089bbcfc31279f01a38c40b8/network.py#L104- patch gan discriminator code
-        self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1), nn.Sigmoid())
-        self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.num_classes + 1), nn.Softmax()) # 우리는 이게 attribute가 아니라 face인거지
+        # 소현 원본 코드
+        # self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1),nn.Sigmoid())
+        # self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.num_classes + 1), nn.Softmax()) # 우리는 이게 attribute가 아니라 face인거지
+        # 논문에 나와있는 discriminator architecture 참고해 수정함
+        self.adv_layer = nn.Sequential(nn.Conv2d(128 * ds_size ** 2, 1, kernel_size=3, stride=1, padding=1),
+                                       nn.Sigmoid()
+        )
+        self.attr_layer = nn.Sequential(nn.Conv2d(128 * ds_size ** 2, opt.num_classes, kernel_size=2, stride=1, padding=0),
+                                        nn.Softmax())  # attribute classification대신 얼굴 인식 수행
 
     def forward(self, x):
         out = self.discriminator_block(x)
         out = out.view(out.shape[0], -1)
         validity = self.adv_layer(out)
-        label = self.aux_layer(out)
+        label = self.attr_layer(out)
 
         return validity, label
 
@@ -306,6 +313,13 @@ class Discriminator(nn.Module):
 # 참고링크: https://github.com/eriklindernoren/PyTorch-GAN/blob/master/implementations/cogan/cogan.py 210줄
 adversarial_loss = torch.nn.BCELoss()
 auxiliary_loss = torch.nn.CrossEntropyLoss()
+
+### discriminator에 사용되는 attribute loss !!!미완성!!!
+# attribute loss는 정답 이미지~복원한 이미지 각각 attribute의 mse로, paired image에만 사용됨
+# 복원된 이미지는 Generator의 return인 out_final에 해당함 (아래 코드의 generator에 해당하는듯?)
+# 정답 이미지는 dataloader에서 불러와야 할듯?
+# attribute_loss = nn.MSELoss(input, target)  # 순서대로 정답 이미지, 복원한 이미지
+
 
 # Initialize generator and discriminator
 generator = Generator()
@@ -316,6 +330,7 @@ if cuda:
     discriminator.cuda()
     adversarial_loss.cuda()
     auxiliary_loss.cuda()
+    # attribute_loss.cuda()
 
 # Initialize weights
 generator.apply(weights_init_normal)
@@ -339,7 +354,7 @@ trin_dataloader_up = DataLoader(unpaired_dataset,
                                 batch_size=30)
 
 # Optimizers
-# TODO: 10-4가 0.0001맞나?
+# TODO: 10-4가 0.0001맞나? -> 1E-4는 1*10^(-4)와 동일함
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=0.0001, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=0.0001, betas=(opt.b1, opt.b2))
 
