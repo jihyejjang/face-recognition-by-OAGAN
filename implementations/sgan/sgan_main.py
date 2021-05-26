@@ -290,8 +290,15 @@ class Discriminator(nn.Module):
         # Output layers
         # TODO: sgan 그대로 써도될지. 논문에는 conv(adv), conv(attr)임
         # https://github.com/znxlwm/pytorch-pix2pix/blob/3059f2af53324e77089bbcfc31279f01a38c40b8/network.py#L104- patch gan discriminator code
-        self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1), nn.Sigmoid())
-        self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.num_classes + 1), nn.Softmax()) # 우리는 이게 attribute가 아니라 face인거지
+        # 소현 원본 코드
+        # self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1),nn.Sigmoid())
+        # self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.num_classes + 1), nn.Softmax()) # 우리는 이게 attribute가 아니라 face인거지
+        # 논문에 나와있는 discriminator architecture 참고해 수정함
+        self.adv_layer = nn.Sequential(nn.Conv2d(2048, 1, kernel_size=3, stride=1, padding=1),
+                                       nn.Sigmoid()
+        )
+        self.attr_layer = nn.Sequential(nn.Conv2d(2048, opt.num_classes, kernel_size=2, stride=1, padding=0),
+                                        nn.Softmax())  # attribute classification대신 얼굴 인식 수행
 
     def forward(self, x):
         out = self.discriminator_block(x)
