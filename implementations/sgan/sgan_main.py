@@ -294,10 +294,10 @@ class Discriminator(nn.Module):
         # self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1),nn.Sigmoid())
         # self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.num_classes + 1), nn.Softmax()) # 우리는 이게 attribute가 아니라 face인거지
         # 논문에 나와있는 discriminator architecture 참고해 수정함
-        self.adv_layer = nn.Sequential(nn.Conv2d(2048, 1, kernel_size=3, stride=1, padding=1),
+        self.adv_layer = nn.Sequential(nn.Conv2d(128 * ds_size ** 2, 1, kernel_size=3, stride=1, padding=1),
                                        nn.Sigmoid()
         )
-        self.attr_layer = nn.Sequential(nn.Conv2d(2048, opt.num_classes, kernel_size=2, stride=1, padding=0),
+        self.attr_layer = nn.Sequential(nn.Conv2d(128 * ds_size ** 2, opt.num_classes, kernel_size=2, stride=1, padding=0),
                                         nn.Softmax())  # attribute classification대신 얼굴 인식 수행
 
     def forward(self, x):
