@@ -304,7 +304,7 @@ class Discriminator(nn.Module):
         out = self.discriminator_block(x)
         out = out.view(out.shape[0], -1)
         validity = self.adv_layer(out)
-        label = self.aux_layer(out)
+        label = self.attr_layer(out)
 
         return validity, label
 
