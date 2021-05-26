@@ -314,6 +314,13 @@ class Discriminator(nn.Module):
 adversarial_loss = torch.nn.BCELoss()
 auxiliary_loss = torch.nn.CrossEntropyLoss()
 
+### discriminator에 사용되는 attribute loss !!!미완성!!!
+# attribute loss는 정답 이미지~복원한 이미지 각각 attribute의 mse로, paired image에만 사용됨
+# 복원된 이미지는 Generator의 return인 out_final에 해당함 (아래 코드의 generator에 해당하는듯?)
+# 정답 이미지는 dataloader에서 불러와야 할듯?
+# attribute_loss = nn.MSELoss(input, target)  # 순서대로 정답 이미지, 복원한 이미지
+
+
 # Initialize generator and discriminator
 generator = Generator()
 discriminator = Discriminator()
@@ -323,6 +330,7 @@ if cuda:
     discriminator.cuda()
     adversarial_loss.cuda()
     auxiliary_loss.cuda()
+    # attribute_loss.cuda()
 
 # Initialize weights
 generator.apply(weights_init_normal)
@@ -346,7 +354,7 @@ trin_dataloader_up = DataLoader(unpaired_dataset,
                                 batch_size=30)
 
 # Optimizers
-# TODO: 10-4가 0.0001맞나?
+# TODO: 10-4가 0.0001맞나? -> 1E-4는 1*10^(-4)와 동일함
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=0.0001, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=0.0001, betas=(opt.b1, opt.b2))
 
