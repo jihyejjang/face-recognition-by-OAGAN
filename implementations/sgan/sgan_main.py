@@ -21,7 +21,7 @@ os.makedirs("images", exist_ok=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=10, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -137,7 +137,7 @@ class Generator(nn.Module):
             nn.Sigmoid()
         )
 
-        self.FaceComletion=nn.Sequential(
+        self.FaceCompletion=nn.Sequential(
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.InstanceNorm2d(512),
             nn.ReLU(),
@@ -302,7 +302,7 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         out = self.discriminator_block(x)
-        out = out.view(out.shape[0], -1)
+        #out = out.view(out.shape[0], -1)
         validity = self.adv_layer(out)
         label = self.attr_layer(out)
 
@@ -347,7 +347,7 @@ paired_dataset = OAGandataset(paired=True, folder_numbering=False)
 train_dataloader_p = DataLoader(paired_dataset,
                                 shuffle=True,
                                 num_workers=0,
-                                batch_size= 30) #batch size?
+                                batch_size= opt.batch_size)
 # #train_dataloader_up = DataLoader(unpaired_dataset,
 #                             shuffle=True,
 #                             num_workers=0,
@@ -369,8 +369,10 @@ LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 #나도 TODO넣고싶은데 어케함???????
 #paired image training (unpaired도 따로 만들고, loss도 상황에 따라 적용)
 for epoch in range(opt.n_epochs):
-    for i, (imgs,imgs_gt,labels) in enumerate(train_dataloader_p):
-
+    for i, (imgs, imgs_gt, labels) in enumerate(train_dataloader_p):
+        #print(imgs.shape)
+        #print(imgs_gt.shape)
+        #print(labels.shape)
         batch_size = imgs.shape[0]
 
         # Adversarial ground truths
@@ -389,10 +391,12 @@ for epoch in range(opt.n_epochs):
         optimizer_G.zero_grad()
 
         # Sample noise and labels as generator input
-        z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
+        #z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
+        #print(z.shape)
 
         # Generate a batch of images
-        gen_imgs = generator(z)
+        gen_imgs = generator(real_imgs)
+        print(gen_imgs.shape)
 
         # Loss measures generator's ability to fool the discriminator
         validity, _ = discriminator(gen_imgs)
