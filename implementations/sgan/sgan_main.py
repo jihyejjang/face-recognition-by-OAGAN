@@ -21,7 +21,7 @@ os.makedirs("images", exist_ok=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=10, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -137,7 +137,7 @@ class Generator(nn.Module):
             nn.Sigmoid()
         )
 
-        self.FaceComletion=nn.Sequential(
+        self.FaceCompletion=nn.Sequential(
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.InstanceNorm2d(512),
             nn.ReLU(),
@@ -166,6 +166,7 @@ class Generator(nn.Module):
         # occlusion aware module
         out_predicted=self.FaceOcclusion_1(x)
         out_InvertedM=torch.ones(1, 1, 128, 128) - x
+        # out_InvertedM = torch.ones(1, 1, 128, 128).cuda() - x
         out_predictedM=self.FaceOcclusion_2(out_predicted)
         out_oa=torch.matmul(out_predicted, out_predictedM)
 
@@ -267,6 +268,7 @@ class Generator(nn.Module):
 #         # print("fc layer shape:", out.shape)
 #         return out
 
+# 입력 이미지 shape: [10, 3, 128, 128]
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
@@ -304,7 +306,7 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         out = self.discriminator_block(x)
-        out = out.view(out.shape[0], -1)
+        # out = out.view(out.shape[0], -1)
         validity = self.adv_layer(out)
         label = self.attr_layer(out)
 
@@ -346,7 +348,7 @@ paired_dataset = OAGandataset(paired=True, folder_numbering=False)
 train_dataloader_p = DataLoader(paired_dataset,
                                 shuffle=True,
                                 num_workers=0,
-                                batch_size= 30) #batch size?
+                                batch_size= opt.batch_size) #batch size?
 # #train_dataloader_up = DataLoader(unpaired_dataset,
 #                             shuffle=True,
 #                             num_workers=0,
@@ -373,8 +375,8 @@ for epoch in range(opt.n_epochs):
         batch_size = imgs.shape[0]
 
         # Adversarial ground truths
-        valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
-        fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
+        valid = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(1.0), requires_grad=False)
+        fake = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(0.0), requires_grad=False)
         fake_attr_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
 
         # Configure input
@@ -388,13 +390,18 @@ for epoch in range(opt.n_epochs):
         optimizer_G.zero_grad()
 
         # Sample noise and labels as generator input
-        z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
+        # z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
 
         # Generate a batch of images
-        gen_imgs = generator(z)
+        # gen_imgs = generator(z)
+        print("real_imgs: ", real_imgs.shape)
+        gen_imgs = generator(real_imgs)
+        print("gen_imgs: ", gen_imgs.shape)
 
         # Loss measures generator's ability to fool the discriminator
         validity, _ = discriminator(gen_imgs)
+        print('validity shape: ', validity.shape)
+        print('valid shape: ', valid.shape)
         g_loss = adversarial_loss(validity, valid)
 
         g_loss.backward()
@@ -424,10 +431,12 @@ for epoch in range(opt.n_epochs):
         d_loss = (d_real_loss + d_fake_loss) / 2
 
         # Calculate discriminator accuracy
-        pred = np.concatenate([real_aux.data.cpu().numpy(), fake_attr.data.cpu().numpy()], axis=0)
+        pred = np.concatenate([real_attr.data.cpu().numpy(), fake_attr.data.cpu().numpy()], axis=0)
         gt = np.concatenate([labels.data.cpu().numpy(), fake_attr_gt.data.cpu().numpy()], axis=0)
         d_acc = np.mean(np.argmax(pred, axis=1) == gt)
 
+        # print('d_loss type: ', type(d_loss))
+        d_loss = d_loss.type(torch.FloatTensor)
         d_loss.backward()
         optimizer_D.step()
 
