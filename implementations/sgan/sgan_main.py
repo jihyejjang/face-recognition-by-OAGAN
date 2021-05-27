@@ -370,8 +370,10 @@ LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 #나도 TODO넣고싶은데 어케함???????
 #paired image training (unpaired도 따로 만들고, loss도 상황에 따라 적용)
 for epoch in range(opt.n_epochs):
-    for i, (imgs,imgs_gt,labels) in enumerate(train_dataloader_p):
-
+    for i, (imgs, imgs_gt, labels) in enumerate(train_dataloader_p):
+        #print(imgs.shape)
+        #print(imgs_gt.shape)
+        #print(labels.shape)
         batch_size = imgs.shape[0]
 
         # Adversarial ground truths
@@ -396,7 +398,7 @@ for epoch in range(opt.n_epochs):
         # gen_imgs = generator(z)
         print("real_imgs: ", real_imgs.shape)
         gen_imgs = generator(real_imgs)
-        print("gen_imgs: ", gen_imgs.shape)
+        print("gen_imgs: ", gen_imgs.shape
 
         # Loss measures generator's ability to fool the discriminator
         validity, _ = discriminator(gen_imgs)
