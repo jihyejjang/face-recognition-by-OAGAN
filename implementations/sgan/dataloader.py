@@ -16,6 +16,7 @@ import torchvision.utils
 import numpy as np
 # import random
 from PIL import Image
+#from sgan_main import *
 # import torch
 # from torch.autograd import Variable
 # import PIL.ImageOps
@@ -45,8 +46,8 @@ class OAGandataset():
         self.img_size=128
 
         if self.paired :
-            self.dir_x = ".dataset/paired_dataset/with_mask"
-            self.dir_y = ".dataset/paired_dataset/without_mask"
+            self.dir_x = "./dataset/paired_dataset/with_mask"
+            self.dir_y = "./dataset/paired_dataset/without_mask"
 
             folders = os.listdir(self.dir_y)
             folders = sorted([f for f in folders if not f.startswith('.')])  # ignore .DS_store in macOS
@@ -69,39 +70,50 @@ class OAGandataset():
             for f in range(len(file_names)):
                 for i in range(len(file_names[f])):
                     self.label.append(folders[f])
+            self.label = self.label[0]
         else:
             self.file_name = folders
             self.label.append(folders)
+            self.label = self.label[0]
             #folder가 없는경우 file name이 곧 label
+
+        #print ("label: ", self.label)
 
 
     def __len__(self): # folder 갯수 = 사람 수
-        print("train : 총 ", len(self.file_name), "장의 image")
+        #print("train : 총 ", len(self.file_name), "장의 image")
         return len(self.file_name)
 
-    def __getitem__(self,index):
+    def __getitem__(self, index):
+        print ("index :", index)
         trans = transforms.Compose([transforms.Resize((self.img_size,self.img_size)),
                                     transforms.ToTensor()])
 
         if self.paired: #paired image인 경우
-            dir = os.path.join(self.dir_x, self.label[index], self.file_name[index])
+            dir = os.path.join(self.dir_x, self.file_name[index])
+            dir_ = os.path.join(self.dir_y, self.file_name_y[index])
+
+            if self.folder_numbering :
+                dir = os.path.join(self.dir_x, self.label[index], self.file_name[index])
+                dir_ = os.path.join(self.dir_y,self.label[index], self.file_name_y[index])
+
             img = Image.open(dir)
             x_occ = trans(img)
 
             label = self.label[index]
 
-            dir_ = os.path.join(self.dir_y, self.label[index], self.file_name_y[index])
             img_ = Image.open(dir_)
             x_gt = trans(img_)
 
             return x_occ, x_gt, label
 
         else: #pair가 없는 image인 경우
-            dir = os.path.join (self.dir_x, self.label[index])
-            img = Image.open(dir)
-            x_occ = trans(img)
+            if self.folder_numbering:
+                dir = os.path.join (self.dir_x, self.label[index])
+                img = Image.open(dir)
+                x_occ = trans(img)
 
-            label = self.label[index]
+                label = self.label[index]
 
             return x_occ, label
 

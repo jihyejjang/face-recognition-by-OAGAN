@@ -3,7 +3,7 @@
 import argparse
 import os
 import numpy as np
-from dataloader import OAGandataset
+from dataloader import *
 import math
 
 import torchvision.transforms as transforms
@@ -327,16 +327,16 @@ discriminator.apply(weights_init_normal)
 # 밑에 오류는 언니가 dataloader만들면 없어질거임.
 
 paired_dataset = OAGandataset(paired=True, folder_numbering=False)
-unpaired_dataset = OAGandataset(unpaired=True, folder_numbering=False)
+#unpaired_dataset = OAGandataset(unpaired=True, folder_numbering=False)
 
 train_dataloader_p = DataLoader(paired_dataset,
                                 shuffle=True,
                                 num_workers=0,
                                 batch_size= 30) #batch size?
-trin_dataloader_up = DataLoader(unpaired_dataset,
-                                shuffle=True,
-                                num_sorkers=0,
-                                batch_size=30)
+# #train_dataloader_up = DataLoader(unpaired_dataset,
+#                             shuffle=True,
+#                             num_workers=0,
+#                             batch_size=30)
 
 # Optimizers
 # TODO: 10-4가 0.0001맞나?
