@@ -73,11 +73,9 @@ class OAGandataset():
             self.label = self.label[0]
         else:
             self.file_name = folders
-            self.label.append(folders)
-            self.label = self.label[0]
+            self.label = [n for n in range(len(folders))]
             #folder가 없는경우 file name이 곧 label
 
-        #print ("label: ", self.label)
 
 
     def __len__(self): # folder 갯수 = 사람 수
@@ -85,7 +83,7 @@ class OAGandataset():
         return len(self.file_name)
 
     def __getitem__(self, index):
-        print ("index :", index)
+        #print ("index :", index)
         trans = transforms.Compose([transforms.Resize((self.img_size,self.img_size)),
                                     transforms.ToTensor()])
 
