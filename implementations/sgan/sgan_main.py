@@ -3,9 +3,8 @@
 import argparse
 import os
 import numpy as np
-from dataloader import *
+from dataloader import OAGandataset
 import math
-
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
@@ -16,12 +15,15 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import torchvision.models as models
+from auxiliary_training import *
+
 
 os.makedirs("images", exist_ok=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=10, help="size of the batches")
+parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
@@ -36,7 +38,12 @@ opt = parser.parse_args()
 
 cuda = True if torch.cuda.is_available() else False
 
-
+lam1 = 0.2
+lam2 = 0.2
+lam3 = 0.2
+lam4 = 0.2
+lam5 = 0.1
+lam6 = 0.1
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -166,7 +173,6 @@ class Generator(nn.Module):
         # occlusion aware module
         out_predicted=self.FaceOcclusion_1(x)
         out_InvertedM=torch.ones(1, 1, 128, 128) - x
-        # out_InvertedM = torch.ones(1, 1, 128, 128).cuda() - x
         out_predictedM=self.FaceOcclusion_2(out_predicted)
         out_oa=torch.matmul(out_predicted, out_predictedM)
 
@@ -176,7 +182,7 @@ class Generator(nn.Module):
         out_filter=torch.matmul(x, out_predictedM)
         out_final=out_filter + out_fc
 
-        return out_final
+        return out_predictedM,  out_InvertedM, out_synth, out_final
 
 
 
@@ -268,7 +274,6 @@ class Generator(nn.Module):
 #         # print("fc layer shape:", out.shape)
 #         return out
 
-# 입력 이미지 shape: [10, 3, 128, 128]
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
@@ -287,41 +292,29 @@ class Discriminator(nn.Module):
             nn.Conv2d(1024, 2048, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU()
         )
-
+        # The height and width of downsampled image
+        # ds_size = opt.img_size // 2 ** 4
         # Output layers
         # TODO: sgan 그대로 써도될지. 논문에는 conv(adv), conv(attr)임
         # https://github.com/znxlwm/pytorch-pix2pix/blob/3059f2af53324e77089bbcfc31279f01a38c40b8/network.py#L104- patch gan discriminator code
-
-        # 원본 코드
-        # ds_size = opt.img_size // 2 ** 4  # downsampled image size
-        # self.adv_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, 1),nn.Sigmoid())
-        # self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.num_classes + 1), nn.Softmax()) # 우리는 이게 attribute가 아니라 face인거지
-
-        # 논문에 나와있는 discriminator architecture 참고해 수정함
         self.adv_layer = nn.Sequential(nn.Conv2d(2048, 1, kernel_size=3, stride=1, padding=1),
                                        nn.Sigmoid()
                                        )
         self.attr_layer = nn.Sequential(nn.Conv2d(2048, opt.num_classes, kernel_size=2, stride=1, padding=0),
                                         nn.Softmax())  # attribute classification대신 얼굴 인식 수행
-
     def forward(self, x):
         out = self.discriminator_block(x)
-        # out = out.view(out.shape[0], -1)
+        out = out.view(out.shape[0], -1)
         validity = self.adv_layer(out)
-        label = self.attr_layer(out)
+        label = self.aux_layer(out)
 
         return validity, label
 
 # Loss functions - TODO: 지혜,승건 수정 부분
 # loss 합치는거 그냥 sum of scala vector*loss 로 하면될듯?
 # 참고링크: https://github.com/eriklindernoren/PyTorch-GAN/blob/master/implementations/cogan/cogan.py 210줄
-adversarial_loss = nn.BCELoss()
+adversarial_loss = torch.nn.BCELoss()
 attribute_loss = nn.MSELoss()  # discriminator에 사용되는 attribute loss
-
-# attribute loss는 정답 이미지~복원한 이미지 각각 attribute의 mse로, paired image에만 사용됨
-# 복원된 이미지는 Generator의 return인 out_final에 해당함 (아래 코드의 generator에 해당하는듯?)
-# 정답 이미지는 dataloader에서 불러와야 할듯?
-# attribute_loss = nn.MSELoss(input, target)  # 순서대로 정답 이미지, 복원한 이미지
 
 # Initialize generator and discriminator
 generator = Generator()
@@ -343,19 +336,19 @@ discriminator.apply(weights_init_normal)
 # 밑에 오류는 언니가 dataloader만들면 없어질거임.
 
 paired_dataset = OAGandataset(paired=True, folder_numbering=False)
-#unpaired_dataset = OAGandataset(unpaired=True, folder_numbering=False)
+# unpaired_dataset = OAGandataset(unpaired=True, folder_numbering=False)
 
 train_dataloader_p = DataLoader(paired_dataset,
                                 shuffle=True,
                                 num_workers=0,
-                                batch_size= opt.batch_size) #batch size?
-# #train_dataloader_up = DataLoader(unpaired_dataset,
-#                             shuffle=True,
-#                             num_workers=0,
-#                             batch_size=30)
+                                batch_size= 10) #batch size?
+# train_dataloader_up = DataLoader(unpaired_dataset,
+#                                 shuffle=True,
+#                                 num_workers=0,
+#                                 batch_size=10)
 
 # Optimizers
-# TODO: 10-4가 0.0001맞나? -> 1E-4는 1*10^(-4)와 동일함
+# TODO: 10-4가 0.0001맞나?
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=0.0001, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=0.0001, betas=(opt.b1, opt.b2))
 
@@ -370,19 +363,17 @@ LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 #나도 TODO넣고싶은데 어케함???????
 #paired image training (unpaired도 따로 만들고, loss도 상황에 따라 적용)
 for epoch in range(opt.n_epochs):
-    for i, (imgs, imgs_gt, labels) in enumerate(train_dataloader_p):
-        #print(imgs.shape)
-        #print(imgs_gt.shape)
-        #print(labels.shape)
+    for i, (imgs,imgs_gt,labels) in enumerate(train_dataloader_p):
+
         batch_size = imgs.shape[0]
 
         # Adversarial ground truths
-        valid = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(1.0), requires_grad=False)
-        fake = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(0.0), requires_grad=False)
+        valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
+        fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
         fake_attr_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
 
         # Configure input
-        real_imgs = Variable(imgs.type(FloatTensor))
+        real_imgs = Variable(imgs.type(FloatTensor)) # 뇌피셜 :
         labels = Variable(labels.type(LongTensor))
 
         # -----------------
@@ -393,18 +384,23 @@ for epoch in range(opt.n_epochs):
 
         # Sample noise and labels as generator input
         # z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-
         # Generate a batch of images
-        # gen_imgs = generator(z)
-        print("real_imgs: ", real_imgs.shape)
-        gen_imgs = generator(real_imgs)
-        print("gen_imgs: ", gen_imgs.shape
+        gen_imgs = generator(real_imgs)[3]
+        # out_predictedM = gen_imgs[0]
+        # out_InvertedM = gen_imgs[1]
+        # out_synth = gen_imgs[2]
+        # out_final = gen_imgs[3]
+        # # Loss measures generator's ability to fool the discriminator
 
-        # Loss measures generator's ability to fool the discriminator
-        validity, _ = discriminator(gen_imgs)
-        print('validity shape: ', validity.shape)
-        print('valid shape: ', valid.shape)
+        print(gen_imgs.shape)
+        validity, _ = discriminator(gen_imgs) # ??????????
         g_loss = adversarial_loss(validity, valid)
+        # g_loss = lam1 * perceptual_loss(out_synth, out_final, vgg16_features, imgs_gt) +\
+        #            lam2 * style_loss(out_synth, out_final, vgg16_features, imgs_gt) +\
+        #            lam3 * pixel_loss(out_final, imgs_gt, out_InvertedM, out_predictedM, alpha = 0.5, beta = 0.5) +\
+        #            lam4 * smooth_loss(imgs, out_final,out_predictedM) +\
+        #            lam5 * M  +\
+        #            lam6 * adversarial_loss(validity, valid)
 
         g_loss.backward()
         optimizer_G.step()
@@ -420,7 +416,7 @@ for epoch in range(opt.n_epochs):
         d_beta = 0.5
 
         # Loss for real images
-        real_pred, real_attr = discriminator(real_imgs)
+        real_pred, real_attr  = discriminator(real_imgs)
         # d_real_loss = (adversarial_loss(real_pred, valid) + auxiliary_loss(real_aux, labels)) / 2
         d_real_loss = d_alpha * adversarial_loss(real_pred, valid) + d_beta * attribute_loss(real_attr, labels)
 
@@ -437,7 +433,6 @@ for epoch in range(opt.n_epochs):
         gt = np.concatenate([labels.data.cpu().numpy(), fake_attr_gt.data.cpu().numpy()], axis=0)
         d_acc = np.mean(np.argmax(pred, axis=1) == gt)
 
-        # print('d_loss type: ', type(d_loss))
         d_loss = d_loss.type(torch.FloatTensor)
         d_loss.backward()
         optimizer_D.step()
