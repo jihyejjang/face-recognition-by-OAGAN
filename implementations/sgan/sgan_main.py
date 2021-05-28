@@ -306,9 +306,11 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         out = self.discriminator_block(x)
+
         # out = out.view(out.shape[0], -1)
         validity = self.adv_layer(out)
         label = self.attr_layer(out)
+        label = label.view(label.shape[0], -1)
 
         return validity, label
 
@@ -396,6 +398,7 @@ for epoch in range(opt.n_epochs):
         # gen_imgs = generator(z)
         print("real_imgs: ", real_imgs.shape)
         gen_imgs = generator(real_imgs)
+        print("gen_imgs: ", type(gen_imgs))
         print("gen_imgs: ", gen_imgs.shape)
 
         # Loss measures generator's ability to fool the discriminator
@@ -435,7 +438,8 @@ for epoch in range(opt.n_epochs):
         gt = np.concatenate([labels.data.cpu().numpy(), fake_attr_gt.data.cpu().numpy()], axis=0)
         d_acc = np.mean(np.argmax(pred, axis=1) == gt)
 
-        # print('d_loss type: ', type(d_loss))
+        print('d_loss shape: ', d_loss.shape)
+        print(d_loss)
         d_loss = d_loss.type(torch.FloatTensor)
         d_loss.backward()
         optimizer_D.step()
