@@ -6,7 +6,7 @@
 
 - [ ] 데이터 수집 및 전처리(landmark검출->resize)
 - [x] `지혜승건` -> Generator - Occlusion Aware Module
-  - [ ] 데이터 수집, 전처리되는대로 input image, demension바꾸기
+  - [x] 데이터 수집, 전처리되는대로 input image, demension바꾸기
   - [x] 아래 reference의 table1 참고하여 모델 구현
   - [x] 모델에서 predicted mask M 저장: 마지막 레이어의 (1x128x128 output) sigmoid 출력
   - [x] 모델에서 intermediate face feature(중간 피쳐) 저장
@@ -16,7 +16,7 @@
   - [x] 아래 reference의 table1 참고하여 모델 구현
   - [x] 모델의 출력을 inverted M과 dot product
   - [x] oa module(지혜승건팀)의 xocc와 M eltw 결과를 3의 바로위 결과와 sum(->discriminator의 input)
-- [ ] `소현나연` -> Discriminator
+- [x] `소현나연` -> Discriminator
 - [ ] `지혜승건` -> loss function(pair-perceptual, style, pixel, smooth, L2, adversarial / unpair-smooth, L2, adversarial)
 - [ ] train
 - [ ] ...

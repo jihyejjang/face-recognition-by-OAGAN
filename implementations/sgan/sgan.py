@@ -1,3 +1,4 @@
+# 주요 shape print해놨으니 참고 바람
 import argparse
 import os
 import numpy as np
@@ -29,7 +30,7 @@ parser.add_argument("--img_size", type=int, default=32, help="size of each image
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval between image sampling")
 opt = parser.parse_args()
-print(opt)
+# print(opt)
 
 cuda = True if torch.cuda.is_available() else False
 
@@ -99,10 +100,10 @@ class Discriminator(nn.Module):
         self.aux_layer = nn.Sequential(nn.Linear(128 * ds_size ** 2, opt.num_classes + 1), nn.Softmax())
 
     def forward(self, img):
-        out = self.conv_blocks(img)
-        out = out.view(out.shape[0], -1)
-        validity = self.adv_layer(out)
-        label = self.aux_layer(out)
+        out = self.conv_blocks(img) # torch.Size([64, 128, 2, 2])
+        out = out.view(out.shape[0], -1) # torch.Size([64, 512])
+        validity = self.adv_layer(out) # torch.Size([64, 1])
+        label = self.aux_layer(out) # torch.Size([64, 11])
 
         return validity, label
 
@@ -150,11 +151,13 @@ LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 # ----------
 #  Training
 # ----------
-
-for epoch in range(opt.n_epochs):
+torch.set_printoptions(profile='full')
+# for epoch in range(opt.n_epochs):
+for epoch in range(1):
     for i, (imgs, labels) in enumerate(dataloader):
-
         batch_size = imgs.shape[0]
+        # print(imgs[0])
+        # print(imgs.shape)
 
         # Adversarial ground truths
         valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
@@ -164,6 +167,7 @@ for epoch in range(opt.n_epochs):
         # Configure input
         real_imgs = Variable(imgs.type(FloatTensor))
         labels = Variable(labels.type(LongTensor))
+        # print(labels)
 
         # -----------------
         #  Train Generator
@@ -179,7 +183,7 @@ for epoch in range(opt.n_epochs):
 
         # Loss measures generator's ability to fool the discriminator
         validity, _ = discriminator(gen_imgs)
-        g_loss = adversarial_loss(validity, valid)
+        g_loss = adversarial_loss(validity, valid) # 둘다 shape이 torch.Size([64, 1])
 
         g_loss.backward()
         optimizer_G.step()
@@ -217,3 +221,4 @@ for epoch in range(opt.n_epochs):
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
             save_image(gen_imgs.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
+
