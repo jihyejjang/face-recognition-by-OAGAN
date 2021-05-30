@@ -1,4 +1,7 @@
-# TODO: ---우선적으로해야할것---dataloader,dataset선별
+# 새로운 참고링크: https://github.com/eriklindernoren/PyTorch-GAN/tree/master/implementations/context_encoder
+# 우리랑 같은 3채널에 하고자하는 바도 비슷함. shape 참고하기 좋을듯하여 첨부함
+
+# 나(소현)는 사진 11개 -> batch_size=11, num_classes=11이니 주의바람!
 
 import argparse
 import os
@@ -23,15 +26,15 @@ os.makedirs("images", exist_ok=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
-parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
-parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
+parser.add_argument("--batch_size", type=int, default=11, help="size of the batches")
+parser.add_argument("--lr", type=float, default=0.0001, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
 parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
 parser.add_argument("--latent_dim", type=int, default=100, help="dimensionality of the latent space")
-parser.add_argument("--num_classes", type=int, default=10, help="number of classes for dataset")
-parser.add_argument("--img_size", type=int, default=32, help="size of each image dimension")
-parser.add_argument("--channels", type=int, default=1, help="number of image channels")
+parser.add_argument("--num_classes", type=int, default=11, help="number of classes for dataset")
+parser.add_argument("--img_size", type=int, default=128, help="size of each image dimension")
+parser.add_argument("--channels", type=int, default=3, help="number of image channels")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval between image sampling")
 opt = parser.parse_args()
 # print(opt)
@@ -59,7 +62,6 @@ class IdentityPadding(nn.Module):
         out = self.pooling(out)
         return out
 
-# TODO: 아직 3* 반영안됨, channel 다시 해줘야됨 -> 완료
 # 코드 출처 : https://dnddnjs.github.io/cifar10/2018/10/09/resnet/
 # https://github.com/eriklindernoren/PyTorch-GAN/blob/a163b82beff3d01688d8315a3fd39080400e7c01/implementations/srgan/models.py#L18
 # 여길보니 residual block 할때 in, out channel이 동일함.
@@ -98,7 +100,6 @@ class ResidualBlock(nn.Module):
         out = self.relu(out)
         return out
 
-# TODO: generator module 두개 한 class로 합치는 작업 -> 완료
 # 참고링크: https://github.com/eriklindernoren/PyTorch-GAN/blob/master/implementations/cogan/cogan.py
 class Generator(nn.Module):
     def __init__(self):
@@ -166,8 +167,9 @@ class Generator(nn.Module):
     def forward(self, x):
         # occlusion aware module
         out_predicted=self.FaceOcclusion_1(x)
-        out_InvertedM=torch.ones(1, 1, 128, 128) - x
         out_predictedM=self.FaceOcclusion_2(out_predicted)
+        # TODO: 아랫줄 1-x가 아니라 1-out_predictedM같은데 어떻게 생각하쇼?일단 바꾸겠음! -> 답변:
+        out_InvertedM = torch.ones(1, 1, 128, 128).cuda() - out_predictedM
         out_oa=torch.matmul(out_predicted, out_predictedM)
 
         # face completion module
@@ -178,95 +180,6 @@ class Generator(nn.Module):
 
         return out_predictedM,  out_InvertedM, out_synth, out_final
 
-
-
-# class FaceOcclusion(nn.Module):
-#     def __init__(self):
-#         super(FaceOcclusion, self).__init__()
-#         # TODO : 밑에 3줄이 의미하는 것 찾아 수정 or 삭제하기
-#         # self.label_emb = nn.Embedding(opt.num_classes, opt.latent_dim)
-#         #
-#         # self.init_size = opt.img_size // 4  # Initial size before upsampling
-#         # self.l1 = nn.Sequential(nn.Linear(opt.latent_dim, 128 * self.init_size ** 2))
-#
-#         self.block1 = nn.Sequential(
-#             nn.Conv2d(3,64,kernel_size=7, stride=1, padding=3), # 왜 3인가?
-#             nn.InstanceNorm2d(64),
-#             nn.ReLU()
-#         )
-#         self.block2=nn.Sequential(
-#             nn.Conv2d(64,128,kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(128),
-#             nn.ReLU(),
-#             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(256),
-#             nn.ReLU()
-#         )
-#         self.block3=nn.Sequential(
-#             ResidualBlock(256, 256),
-#             ResidualBlock(256, 256),
-#             ResidualBlock(256, 256)
-#         )
-#         self.block4=nn.Sequential(
-#             nn.ConvTranspose2d(256,128, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(128),
-#             nn.ReLU(),
-#             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(64),
-#             nn.ReLU()
-#         )
-#         self.block5=nn.Sequential(
-#             nn.Conv2d(64,1, kernel_size=7, stride=1, padding=3),
-#             nn.Sigmoid()
-#         )
-#
-# class FaceCompletion(nn.Module):
-#     def __init__(self):
-#         super(FaceCompletion, self).__init__()
-#         self.block1 = nn.Sequential(
-#             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(512),
-#             nn.ReLU(),
-#             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(512),
-#             nn.ReLU(),
-#             nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(512),
-#             nn.ReLU()
-#         )
-#
-#         self.block2 = nn.Sequential(
-#             nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(256),
-#             nn.ReLU(),
-#             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(128),
-#             nn.ReLU(),
-#             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-#             nn.InstanceNorm2d(64),
-#             nn.ReLU()
-#         )
-#
-#         # 3) conv + tanh
-#         self.block3 = nn.Sequential(
-#             nn.Conv2d(64, 3, kernel_size=7, stride=1, padding=3),
-#             nn.Tanh()
-#         )
-#
-#
-#     def forward(self, x):
-#         out=self.block1(x)
-#         # print("1st feature map:", out.shape)
-#
-#         out=self.block2(out)
-#         # print("2nd feature map:", out.shape)
-#
-#         out=self.block3(out)
-#         # print("3rd feature map:", out.shape)
-#         # out=out.view(out.size(0), -1)
-#         # out=self.fc_layer(out)
-#         # print("fc layer shape:", out.shape)
-#         return out
 
 class Discriminator(nn.Module):
     def __init__(self):
@@ -289,20 +202,18 @@ class Discriminator(nn.Module):
         # The height and width of downsampled image
         # ds_size = opt.img_size // 2 ** 4
         # Output layers
-        # TODO: sgan 그대로 써도될지. 논문에는 conv(adv), conv(attr)임
         # https://github.com/znxlwm/pytorch-pix2pix/blob/3059f2af53324e77089bbcfc31279f01a38c40b8/network.py#L104- patch gan discriminator code
+        # 기존 sgan코드는 linear였지만 우리는 논문에 따라 conv를 취하면서 shape이 달라지게 된듯.
         self.adv_layer = nn.Sequential(nn.Conv2d(2048, 1, kernel_size=3, stride=1, padding=1),
-                                       nn.Sigmoid()
-                                       )
+                                       nn.Sigmoid())
         self.attr_layer = nn.Sequential(nn.Conv2d(2048, opt.num_classes, kernel_size=2, stride=1, padding=0),
                                         nn.Softmax())  # attribute classification대신 얼굴 인식 수행
     def forward(self, x):
-        out = self.discriminator_block(x)
-        # out = out.view(out.shape[0], -1)
-        # print('out2',out.shape)
-        validity = self.adv_layer(out)
-        label = self.attr_layer(out)
-        label = label.view(label.shape[0], -1)
+        out = self.discriminator_block(x) # torch.Size([11, 2048, 2, 2])
+        # out = out.view(out.shape[0], -1) # torch.Size([11, 8192])
+        validity = self.adv_layer(out) # torch.Size([11, 1, 2, 2])
+        label = self.attr_layer(out) # torch.Size([11, 11, 1, 1])
+        # label = label.view(label.shape[0], -1) # torch.Size([11, 11]) # 왜 label view 했는지 설명바람!
 
         return validity, label
 
@@ -327,26 +238,23 @@ generator.apply(weights_init_normal)
 discriminator.apply(weights_init_normal)
 
 # data loader
-# TODO: 지혜 dataloader.py 여기에 써주세요~
-# TODO: py파일 불러오기로쓸거면 return 만들어주세요
-# 밑에 오류는 언니가 dataloader만들면 없어질거임.
-
 paired_dataset = OAGandataset(paired=True, folder_numbering=False)
 # unpaired_dataset = OAGandataset(unpaired=True, folder_numbering=False)
 
 train_dataloader_p = DataLoader(paired_dataset,
                                 shuffle=True,
                                 num_workers=0,
-                                batch_size= 10) #batch size?
+                                batch_size=opt.batch_size) #batch size?
+
+
 # train_dataloader_up = DataLoader(unpaired_dataset,
 #                                 shuffle=True,
 #                                 num_workers=0,
 #                                 batch_size=10)
 
 # Optimizers
-# TODO: 10-4가 0.0001맞나?
-optimizer_G = torch.optim.Adam(generator.parameters(), lr=0.0001, betas=(opt.b1, opt.b2))
-optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=0.0001, betas=(opt.b1, opt.b2))
+optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
+optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
@@ -356,25 +264,28 @@ LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 #  TODO: alternating training 보고 디자인하기
 # ----------
 
-#나도 TODO넣고싶은데 어케함???????
+#나도 TODO넣고싶은데 어케함??????? -> 주석에 영어로 투두쓰면 바로 적용됩니다~
 #paired image training (unpaired도 따로 만들고, loss도 상황에 따라 적용)
 for epoch in range(opt.n_epochs):
     for i, (imgs,imgs_gt,labels) in enumerate(train_dataloader_p):
-
+        #TODO: batch_size 하나로 통일하기(opt, dataloader, img shape)
         batch_size = imgs.shape[0]
 
         # Adversarial ground truths
         valid = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(1.0), requires_grad=False)
         fake = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(0.0), requires_grad=False)
-        # fake_attr_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
-        fake_attr_gt = Variable(FloatTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
+        # valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
+        # fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
+        fake_attr_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
 
         # Configure input
-        real_imgs = Variable(imgs.type(FloatTensor)) # 뇌피셜 :
-        # labels = Variable(labels.type(LongTensor))
-        labels = Variable(labels.type(FloatTensor))
+        real_imgs = Variable(imgs.type(FloatTensor))
+        # TODO: labels는 float 형태일 수 없음. 무조건 long type이어야함. 다른 곳에서 문제가 있는거임.
+        labels = Variable(labels.type(LongTensor))
+        # labels = Variable(labels.type(FloatTensor))
 
         # line 375, line 380 -> FloatTensor가 기대된다고 해서 LongTensor -> FloatTensor 로 바꿔봄 => 에러 안남
+        # => 그렇게하면 안됨
 
         # -----------------
         #  Train Generator
@@ -383,25 +294,27 @@ for epoch in range(opt.n_epochs):
         optimizer_G.zero_grad()
 
         # Sample noise and labels as generator input
-        # z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
+        # z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim)))) -> 우리는 사용X
+
         # Generate a batch of images
-        gen_imgs = generator(real_imgs)[3]
+        out_predictedM, out_InvertedM, out_synth, gen_imgs = generator(real_imgs) # discriminator와 loss 계산에 쓰이는 애들
+        # gen_imgs = generator(real_imgs)[3]
         # out_predictedM = gen_imgs[0]
         # out_InvertedM = gen_imgs[1]
         # out_synth = gen_imgs[2]
         # out_final = gen_imgs[3]
-        # # Loss measures generator's ability to fool the discriminator
 
-        print(gen_imgs.shape)
+        # # Loss measures generator's ability to fool the discriminator
+        # print(gen_imgs.shape)
         validity, _ = discriminator(gen_imgs) # ??????????
         # print('validity', validity.shape) # validity torch.Size([10, 1, 2, 2])
         # print('val', valid.shape) # val torch.Size([10, 1])
-        g_loss = adversarial_loss(validity, valid)
+
+        g_loss = adversarial_loss(validity, valid) # 둘다 shape이 torch.Size([11,1,2,2])
 
         # Sum Error
 
         # Lambda parameters 선언
-
         # lam1 = 0.2
         # lam2 = 0.2
         # lam3 = 0.2
@@ -427,29 +340,30 @@ for epoch in range(opt.n_epochs):
 
         # d_alpha, d_beta는 discriminator에 사용되는 2가지 loss함수에 대한 가중치값으로 우리가 결정해야 하는듯
         d_alpha = 0.5
-        d_beta = 0.5
+        d_beta = 1 - d_alpha
 
         # Loss for real images
-        real_pred, real_attr  = discriminator(real_imgs)
-        # d_real_loss = (adversarial_loss(real_pred, valid) + auxiliary_loss(real_aux, labels)) / 2
+        real_pred, real_attr = discriminator(real_imgs)
+        d_real_loss = (adversarial_loss(real_pred, valid) + attribute_loss(real_attr, labels)) / 2
         d_real_loss = d_alpha * adversarial_loss(real_pred, valid) + d_beta * attribute_loss(real_attr, labels)
         print('r',real_pred.shape)
         print('valid', valid.shape)
 
         # Loss for fake images
         fake_pred, fake_attr = discriminator(gen_imgs.detach())
-        # d_fake_loss = (adversarial_loss(fake_pred, fake) + auxiliary_loss(fake_aux, fake_aux_gt)) / 2
+        # d_fake_loss = (adversarial_loss(fake_pred, fake) + attribute_loss(fake_attr, fake_attr_gt)) / 2
         d_fake_loss = d_alpha * adversarial_loss(fake_pred, fake) + d_beta * attribute_loss(fake_attr, fake_attr_gt)
 
         # Total discriminator loss
         d_loss = (d_real_loss + d_fake_loss) / 2
+        # print(d_loss.type) # 원래(sgan)랑 type똑같음(<built-in method type of Tensor object at ...>). 둘다 float형태.
 
         # Calculate discriminator accuracy
         pred = np.concatenate([real_attr.data.cpu().numpy(), fake_attr.data.cpu().numpy()], axis=0)
         gt = np.concatenate([labels.data.cpu().numpy(), fake_attr_gt.data.cpu().numpy()], axis=0)
         d_acc = np.mean(np.argmax(pred, axis=1) == gt)
 
-        d_loss = d_loss.type(torch.FloatTensor)
+        d_loss = d_loss.type(torch.FloatTensor) # 해도 소용 X
         d_loss.backward()
         optimizer_D.step()
 
