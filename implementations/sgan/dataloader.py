@@ -3,7 +3,7 @@
 
 # ## pytorch custom dataset loader
 
-# In[ ]:
+# 소현 업데이트 내용 - unpaired 변수 삭제
 
 
 #get_ipython().run_line_magic('matplotlib', 'inline')
@@ -39,9 +39,8 @@ with_mask와 without_mask 사진은 match되어야 함!! (개수,사람,얼굴,�
 class OAGandataset():
     # folder_numbering : 사진이 folder별로 분류되어있는지 (일단 실험용으로 받은 데이터셋은 아님)
 
-    def __init__(self,paired=False, unpaired=False, folder_numbering = False):
+    def __init__(self,paired=False, folder_numbering = False):
         self.paired = paired
-        self.unpaired = unpaired
         self.folder_numbering = folder_numbering
         self.img_size=128
 
