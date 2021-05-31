@@ -272,20 +272,20 @@ for epoch in range(opt.n_epochs):
         batch_size = imgs.shape[0]
 
         # Adversarial ground truths
-        valid = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(1.0), requires_grad=False)
-        fake = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(0.0), requires_grad=False)
         # valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
+        valid = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(1.0), requires_grad=False)
         # fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
-        fake_attr_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
+        fake = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(0.0), requires_grad=False)
+        # fake_attr_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
+        fake_attr_gt = Variable(FloatTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
 
         # Configure input
         real_imgs = Variable(imgs.type(FloatTensor))
-        # TODO: labels는 float 형태일 수 없음. 무조건 long type이어야함. 다른 곳에서 문제가 있는거임.
-        labels = Variable(labels.type(LongTensor))
-        # labels = Variable(labels.type(FloatTensor))
+        # TODO: labels는 float 형태일 수 없음. 무조건 long type이어야함. 다른 곳에서 문제가 있는거임. -> 여러 자료 찾아봤지만 다들 이유는 모르지만 label을 float로 형변환하라고 함
+        # labels = Variable(labels.type(LongTensor))
+        labels = Variable(labels.type(FloatTensor))
 
-        # line 375, line 380 -> FloatTensor가 기대된다고 해서 LongTensor -> FloatTensor 로 바꿔봄 => 에러 안남
-        # => 그렇게하면 안됨
+        # line 280, line 286 -> FloatTensor가 기대된다고 해서 LongTensor -> FloatTensor 로 바꿔봄 => 에러 안남
 
         # -----------------
         #  Train Generator
@@ -344,10 +344,10 @@ for epoch in range(opt.n_epochs):
 
         # Loss for real images
         real_pred, real_attr = discriminator(real_imgs)
-        d_real_loss = (adversarial_loss(real_pred, valid) + attribute_loss(real_attr, labels)) / 2
+        # d_real_loss = (adversarial_loss(real_pred, valid) + attribute_loss(real_attr, labels)) / 2
         d_real_loss = d_alpha * adversarial_loss(real_pred, valid) + d_beta * attribute_loss(real_attr, labels)
-        print('r',real_pred.shape)
-        print('valid', valid.shape)
+        # print('r',real_pred.shape)
+        # print('valid', valid.shape)
 
         # Loss for fake images
         fake_pred, fake_attr = discriminator(gen_imgs.detach())
@@ -363,18 +363,8 @@ for epoch in range(opt.n_epochs):
         gt = np.concatenate([labels.data.cpu().numpy(), fake_attr_gt.data.cpu().numpy()], axis=0)
         d_acc = np.mean(np.argmax(pred, axis=1) == gt)
 
-        d_loss = d_loss.type(torch.FloatTensor) # 해도 소용 X
         d_loss.backward()
         optimizer_D.step()
-
-        # print(
-        #     "[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %d%%] [G loss: %f]"
-        #     % (epoch, opt.n_epochs, i, len(dataloader), d_loss.item(), 100 * d_acc, g_loss.item())
-        # )
-        #
-        # batches_done = epoch * len(dataloader) + i
-        # if batches_done % opt.sample_interval == 0:
-        #     save_image(gen_imgs.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
 
         print(
             "[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %d%%] [G loss: %f]"
