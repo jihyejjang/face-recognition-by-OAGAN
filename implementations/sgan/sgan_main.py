@@ -1,6 +1,7 @@
 # TODO: ---우선적으로해야할것---dataloader,dataset선별
 
 import argparse
+from loss import sganloss
 import os
 import numpy as np
 from dataloader import *
@@ -176,7 +177,7 @@ class Generator(nn.Module):
         out_filter=torch.matmul(x, out_predictedM)
         out_final=out_filter + out_fc
 
-        return out_final
+        return out_predictedM, out_InvertedM, out_synth, out_final
 
 
 
@@ -367,6 +368,20 @@ LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 #  TODO: alternating training 보고 디자인하기
 # ----------
 
+class weight():
+
+    def __init__(self):
+        self.lam1 = 0.2
+        self.lam2 = 0.2
+        self.lam3 = 0.2
+        self.lam4 = 0.2
+        self.lam5 = 0.2
+        self.lam6 = 0.2
+        self.alpha = 0.5
+        self.beta = 0.5
+
+w=weight()
+
 #나도 TODO넣고싶은데 어케함???????
 #paired image training (unpaired도 따로 만들고, loss도 상황에 따라 적용)
 for epoch in range(opt.n_epochs):
@@ -398,7 +413,7 @@ for epoch in range(opt.n_epochs):
         # gen_imgs = generator(z)
         print("real_imgs: ", real_imgs.shape)
         gen_imgs = generator(real_imgs)
-        print("gen_imgs: ", gen_imgs.shape
+        print("gen_imgs: ", gen_imgs.shape)
 
         # Loss measures generator's ability to fool the discriminator
         validity, _ = discriminator(gen_imgs)
