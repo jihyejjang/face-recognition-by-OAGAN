@@ -37,6 +37,7 @@ class sganloss():
 
         return one + two
 
+#TODO: smooth loss 수정해야됨 (지혜)
     def smooth_loss(self, img, final, M):
         # x_final
         width = img.size(2)
@@ -45,12 +46,14 @@ class sganloss():
         #f_wid_1_c1b1 = np.array(final)[0][0][:][1:]
         #f_wid_0_c1b1 = np.array(final)[0][0][:][:-1]
         #a1 = nn.L1Loss(f_wid_1_c1b1-f_wid_9_c1b1,
-        pixel=[]           
-        near=[]               
+        pixel=[] #비교 대상 픽셀
+        near=[]  #비교 대상의 인접픽셀
         for batch in range(len(final)):
             for channel in range(len(final[0])):
                 near.append(final[batch][channel][:][1:])
-                pixel.append(final[batch][channel][
+                pixel.append(final[batch][channel][:][:-1]) #맞나?
+
+        
 #         first_np_final = np.array(final)[0][0][:][1:]  # 128,128
 #         second_np_final = np.array(final)[0][1]
 #         third_np_final = np.array(final)[0][2]
