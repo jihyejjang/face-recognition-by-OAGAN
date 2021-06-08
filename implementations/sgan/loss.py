@@ -53,7 +53,7 @@ class sganloss():
                 near.append(final[batch][channel][:][1:])
                 pixel.append(final[batch][channel][:][:-1]) #맞나?
 
-        
+
 #         first_np_final = np.array(final)[0][0][:][1:]  # 128,128
 #         second_np_final = np.array(final)[0][1]
 #         third_np_final = np.array(final)[0][2]
