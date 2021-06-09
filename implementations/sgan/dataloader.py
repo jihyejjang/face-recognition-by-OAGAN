@@ -55,7 +55,7 @@ class OAGandataset():
                 self.file_name_y = sum(file_names, [])  # flatten
             else:
                 self.file_name_y = folders
-        else :
+        else:
             self.dir_x = "./dataset/unpaired_dataset"
         self.label = []
 
