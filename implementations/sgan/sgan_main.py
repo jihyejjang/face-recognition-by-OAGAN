@@ -253,19 +253,37 @@ generator.apply(weights_init_normal)
 discriminator.apply(weights_init_normal)
 
 # data loader
-paired_dataset = OAGandataset(paired=True, folder_numbering=False)
-# unpaired_dataset = OAGandataset(unpaired=True, folder_numbering=False)
+'''
+data load할 부분 Index
+10000장에서 7000장은 train에 사용,
+그 7000장을 1000장씩 나눠서 alternative train에 사용
+
+총 7번의 alternative train paired:unpaired 비율은 각각
+9:1, 8:2, 7:3, 6:4, 5:5, 4:6,3:7
+
+알아서 계산해서 index바꾸시길~
+
+'''
+idx1 = 0
+idx2 = 899
+idx3 = 900
+idx4 = 999
+
+#TODO: model save후 불러오기 (일단은 save만이라도)
+#처음 안 사실 : 숫자 Parameter가 문자 parameter보다 먼저와야함..
+paired_dataset = OAGandataset(idx1, idx2, paired=True, folder_numbering=False)
+unpaired_dataset = OAGandataset(idx3, idx4, unpaired=True, folder_numbering=False)
 
 train_dataloader_p = DataLoader(paired_dataset,
                                 shuffle=True,
                                 num_workers=0,
-                                batch_size=opt.batch_size) #batch size?
+                                batch_size=opt.batch_size)
 
+train_dataloader_up = DataLoader(unpaired_dataset,
+                                shuffle=True,
+                                num_workers=0,
+                                batch_size=opt.batch_size)
 print ("data loaded")
-# train_dataloader_up = DataLoader(unpaired_dataset,
-#                                 shuffle=True,
-#                                 num_workers=0,
-#                                 batch_size=10)
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
@@ -282,11 +300,10 @@ LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
 #나도 TODO넣고싶은데 어케함??????? -> 주석에 영어로 투두쓰면 바로 적용됩니다~
 #paired image training (unpaired도 따로 만들고, loss도 상황에 따라 적용)
-print ("train")
+print ("paired train")
 for epoch in range(opt.n_epochs):
     for i, (imgs,imgs_gt,labels) in enumerate(train_dataloader_p):
-        #TODO: batch_size 하나로 통일하기(opt, dataloader, img shape)
-        batch_size = imgs.shape[0]
+        batch_size = opt.batch_size
 
         # Adversarial ground truths
         # valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
@@ -315,33 +332,18 @@ for epoch in range(opt.n_epochs):
 
         # Generate a batch of images
         out_predictedM, out_InvertedM, out_synth, out_final = generator(real_imgs) # discriminator와 loss 계산에 쓰이는 애들
-        # gen_imgs = generator(real_imgs)[3]
-        # out_predictedM = gen_imgs[0]
-        # out_InvertedM = gen_imgs[1]
-        # out_synth = gen_imgs[2]
-        # out_final = gen_imgs[3]
+
         loss = sganloss([out_final,
-                out_predictedM,
-                out_InvertedM,
-                imgs_gt,
-                out_synth])
+                         out_predictedM,
+                         out_InvertedM,
+                         out_synth],
+                        imgs_gt)
         # # Loss measures generator's ability to fool the discriminator
 
 
         validity, _ = discriminator(out_final) # ?????????? : 해결했으니까 물음표 치우시길!
         # print('validity', validity.shape) # validity torch.Size([10, 1, 2, 2])
         # print('val', valid.shape) # val torch.Size([10, 1])
-        '''
-        g_loss = adversarial_loss(validity, valid) # 둘다 shape이 torch.Size([11,1,2,2])
-
-        # g_loss = lam1 * perceptual_loss(out_synth, out_final, vgg16_features, imgs_gt) +\
-        #            lam2 * style_loss(out_synth, out_final, vgg16_features, imgs_gt) +\
-        #            lam3 * pixel_loss(out_final, imgs_gt, out_InvertedM, out_predictedM, alpha = 0.5, beta = 0.5) +\
-        #            lam4 * smooth_loss(imgs, out_final,out_predictedM) +\
-        #            lam5 * M  +\
-        #            lam6 * adversarial_loss(validity, valid)
-        지워도 될것들
-        '''
 
         g_loss = 0
         g_loss += w.lam1*loss.perceptual_loss()
@@ -397,4 +399,107 @@ for epoch in range(opt.n_epochs):
 
         batches_done = epoch * len(train_dataloader_p) + i
         if batches_done % opt.sample_interval == 0:
-            save_image(out_final.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
+            save_image(out_final.data[:25], "finals/%d.png" % batches_done, nrow=5, normalize=True)
+            save_image(out_synth.data[:25], "synth/%d.png" % batches_done, nrow=5, normalize=True)
+            save_image(out_predictedM.data[:25], "masks/%d.png" % batches_done, nrow=5, normalize=True)
+            torch.save(generator, "generator_paired%d.pt" % batches_done)
+            torch.save(discriminator, "discriminator_paired%d.pt" % batches_done)
+
+print("unpaired train")
+for epoch in range(opt.n_epochs):
+    for i, (imgs, labels) in enumerate(train_dataloader_up):
+
+        batch_size = opt.batch_size
+
+        # Adversarial ground truths
+        # valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
+        valid = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(1.0), requires_grad=False)
+        # fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
+        fake = Variable(FloatTensor(batch_size, 1, 2, 2).fill_(0.0), requires_grad=False)
+        # fake_attr_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
+        fake_attr_gt = Variable(FloatTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
+
+        # Configure input
+        real_imgs = Variable(imgs.type(FloatTensor))
+        labels = Variable(labels.type(FloatTensor))
+
+        # line 280, line 286 -> FloatTensor가 기대된다고 해서 LongTensor -> FloatTensor 로 바꿔봄 => 에러 안남
+
+        # -----------------
+        #  Train Generator
+        # -----------------
+
+        optimizer_G.zero_grad()
+
+        # Sample noise and labels as generator input
+        # z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim)))) -> 우리는 사용X
+
+        # Generate a batch of images
+        out_predictedM, out_InvertedM, out_synth, out_final = generator(real_imgs)  # discriminator와 loss 계산에 쓰이는 애들
+        loss = sganloss([out_final,
+                         out_predictedM,
+                         out_InvertedM,
+                         out_synth],
+                         )
+        # # Loss measures generator's ability to fool the discriminator
+
+        validity, _ = discriminator(out_final)  # ?????????? : 해결했으니까 물음표 치우시길!
+        # print('validity', validity.shape) # validity torch.Size([10, 1, 2, 2])
+        # print('val', valid.shape) # val torch.Size([10, 1])
+
+        g_loss = 0
+        g_loss += w.lam4 * loss.smooth_loss()
+        g_loss += w.lam5 * loss.l2_norm()
+        g_loss += w.lam6 * adversarial_loss(validity, valid)
+
+        print("loss:", g_loss)
+
+        g_loss.backward()
+        optimizer_G.step()
+
+        # ---------------------
+        #  Train Discriminator
+        # ---------------------
+
+        optimizer_D.zero_grad()
+
+        # d_alpha, d_beta는 discriminator에 사용되는 2가지 loss함수에 대한 가중치값으로 우리가 결정해야 하는듯
+        d_alpha = 0.5
+        d_beta = 1 - d_alpha
+
+        # Loss for real images
+        real_pred, real_attr = discriminator(real_imgs)
+        # d_real_loss = (adversarial_loss(real_pred, valid) + attribute_loss(real_attr, labels)) / 2
+        d_real_loss = d_alpha * adversarial_loss(real_pred, valid) + d_beta * attribute_loss(real_attr, labels)
+        # print('r',real_pred.shape)
+        # print('valid', valid.shape)
+
+        # Loss for fake images
+        fake_pred, fake_attr = discriminator(out_final.detach())
+        # d_fake_loss = (adversarial_loss(fake_pred, fake) + attribute_loss(fake_attr, fake_attr_gt)) / 2
+        d_fake_loss = d_alpha * adversarial_loss(fake_pred, fake) + d_beta * attribute_loss(fake_attr, fake_attr_gt)
+
+        # Total discriminator loss
+        d_loss = (d_real_loss + d_fake_loss) / 2
+        # print(d_loss.type) # 원래(sgan)랑 type똑같음(<built-in method type of Tensor object at ...>). 둘다 float형태.
+
+        # Calculate discriminator accuracy
+        pred = np.concatenate([real_attr.data.cpu().numpy(), fake_attr.data.cpu().numpy()], axis=0)
+        gt = np.concatenate([labels.data.cpu().numpy(), fake_attr_gt.data.cpu().numpy()], axis=0)
+        d_acc = np.mean(np.argmax(pred, axis=1) == gt)
+
+        d_loss.backward()
+        optimizer_D.step()
+
+        print(
+            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %d%%] [G loss: %f]"
+            % (epoch, opt.n_epochs, i, len(train_dataloader_p), d_loss.item(), 100 * d_acc, g_loss.item())
+        )
+
+        batches_done = epoch * len(train_dataloader_p) + i
+        if batches_done % opt.sample_interval == 0:
+            save_image(out_final.data[:25], "finals/%d.png" % batches_done, nrow=5, normalize=True)
+            save_image(out_synth.data[:25], "synth/%d.png" % batches_done, nrow=5, normalize=True)
+            save_image(out_predictedM.data[:25], "masks/%d.png" % batches_done, nrow=5, normalize=True)
+            torch.save(generator, "generator_unpaired%d.pt" % batches_done)
+            torch.save(discriminator, "discriminator_unpaired%d.pt" % batches_done)

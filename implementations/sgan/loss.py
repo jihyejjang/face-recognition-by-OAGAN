@@ -9,12 +9,12 @@ from torch import linalg as LA
 
 class sganloss():
     # TODO: vgg_features를 loss함수마다 계산해야 해서 메모리를 엄청 잡아먹음. __init__에서 사진마다 feature 저장해주고, conv layer마다 받아오는게 아니라 pooling layer마다 feature 받아오게 수정
-    def __init__(self, imgs):
+    def __init__(self, imgs , gt = None):
         self.final = imgs[0]
         self.M = imgs[1]
         self.inverse_M = imgs[2]
-        self.gt = imgs[3]
-        self.synth = imgs[4]
+        self.synth = imgs[3]
+        self.gt = gt
 
         # self.img = torch.randn([1, 3, 128, 128])
         self.vgg16 = models.vgg16(pretrained=True).cuda()

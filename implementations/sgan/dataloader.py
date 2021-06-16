@@ -39,7 +39,7 @@ with_mask와 without_mask 사진은 match되어야 함!! (개수,사람,얼굴,�
 class OAGandataset():
     # folder_numbering : 사진이 folder별로 분류되어있는지 (일단 실험용으로 받은 데이터셋은 아님)
 
-    def __init__(self,paired=False, folder_numbering = False):
+    def __init__(self, a=0, b=10000 ,paired=False, folder_numbering = False):
         self.paired = paired
         self.folder_numbering = folder_numbering
         self.img_size=128
@@ -48,7 +48,7 @@ class OAGandataset():
             self.dir_x = "./dataset/paired_dataset/with_mask"
             self.dir_y = "./dataset/paired_dataset/without_mask"
 
-            folders = os.listdir(self.dir_y)
+            folders = sorted(os.listdir(self.dir_y))[a:b]
             folders = sorted([f for f in folders if not f.startswith('.')])  # ignore .DS_store in macOS
             if self.folder_numbering:
                 file_names = [os.listdir(os.path.join(self.dir_y, f)) for f in folders]
@@ -59,21 +59,12 @@ class OAGandataset():
             self.dir_x = "./dataset/unpaired_dataset"
         self.label = []
 
-        folders = os.listdir(self.dir_x)
+        folders = sorted(os.listdir(self.dir_x))[a:b]
         folders = sorted([f for f in folders if not f.startswith('.')])  # ignore .DS_store in macOS
         # folders = sorted(folders)
 
-        if self.folder_numbering:
-            file_names = [os.listdir(os.path.join(self.dir_x , f)) for f in folders]
-            self.file_name = sum(file_names,[])#flatten
-            for f in range(len(file_names)):
-                for i in range(len(file_names[f])):
-                    self.label.append(folders[f])
-            self.label = self.label[0]
-        else:
-            self.file_name = folders
-            self.label = [n for n in range(len(folders))]
-            #folder가 없는경우 file name이 곧 label
+        self.label = [n for n in range(a,b+1)]
+        #folder가 없는경우 불러온 file index가 label
 
 
 
