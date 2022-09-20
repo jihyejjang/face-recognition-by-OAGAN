@@ -1,4 +1,6 @@
 # face recognition by occlusion aware gan
+>인지컴퓨팅 temproject(미완)  
+masked face recognition에서 가려진 부분을 GAN으로 생성해보고자 함
 
 
 ### TODO List
